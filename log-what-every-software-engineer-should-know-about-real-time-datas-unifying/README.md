@@ -1,3 +1,5 @@
+
+
 原文链接： [The Log: What every software engineer should know about real-time data's unifying abstraction](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying) - [Jay Kreps](http://www.linkedin.com/in/jaykreps)，2013-12-16   
 基于开源中国社区的译文稿： [日志：每个软件工程师都应该知道的有关实时数据的统一概念](http://www.oschina.net/translate/log-what-every-software-engineer-should-know-about-real-time-datas-unifying)  
 译文发在[伯乐在线](http://blog.jobbole.com/)：[The Log：每个程序员都应该知道有关实时数据的统一抽象](http://blog.jobbole.com/89674/)， 2015-08-21
@@ -8,18 +10,19 @@
 
 [学习笔记：The Log（我所读过的最好的一篇分布式技术文章）](http://www.cnblogs.com/foreach-break/p/notes_about_distributed_system_and_The_log.html)对本文做了很赞的解读和摘要。
 
-但作为一篇 **_经典_** 文章，还是值得去完整地研读和理解：
+但作为一篇 **_经典_** 文章，还是值得去**完整地研读和理解**：
 
-1. 原文可以作为大数据/分布式系统领域一份导论式的资料。  
+1. 原文可以作为**大数据/分布式系统领域一份导论式的资料**。
     作者对整个领域的理解和实战精深广博，抓出并梳理了这个领域的核心：日志。
 1. 原文作为一手资料，有完整的分析过程，能够深入和核对自己的理解。
-1. 解读和摘要不能替代自己理解。  
+1. 解读和摘要不能替代自己理解。
     信息被过滤和传递得越多，丢失和偏差也就越多。
 
 当然，你也可以把这篇译文本身作为英文原文的一种理解，在读原文时有不理解的地方可以参考对比。
-如果你能这么做，相信对于学习效果真真是极好的～
+如果你能这么做，相信对于学习效果真是极好的～
 
-[自己](http://weibo.com/oldratlee)理解粗浅且这篇文章又长难度又大，翻译中肯定会有不少不足和不对之处，欢迎建议（[提交Issue](https://github.com/oldratlee/translations/issues)）和指正（[Fork后提交代码](https://github.com/oldratlee/translations/fork)）！
+[自己](http://weibo.com/oldratlee)理解粗浅且这篇文章又长难度又大，翻译中肯定会有不少不足和不对之处，
+欢迎建议（[提交Issue](https://github.com/oldratlee/translations/issues)）和指正（[Fork后提交代码](https://github.com/oldratlee/translations/fork)）！
 
 <img src="images/oldratlee-alipay-qr.png" width="15%" hspace="10px" align="right" >
 
@@ -30,18 +33,20 @@ PS：
     邀捐赠是还头一回……
 
 日志：每个软件工程师都应该知道的有关实时数据的统一抽象
-=====================================================================
+======
 
 我在六年前加入到`LinkedIn`公司，那是一个令人兴奋的时刻：我们刚开始面临单一庞大的集中式数据库的限制问题，需要过渡到一套专门的分布式系统。
 这是一个令人兴奋的经历：我们构建、部署和运行分布式图数据库（`distributed graph database`）、分布式搜索后端（`distributed search backend`）、
 `Hadoop`以及第一代和第二代键值数据存储（`key-value store`），而且这套系统一直运行至今。
 
-这个过程中，我学到的最有益的事情是我们所构建这套系统的许多组件其核心都包含了一个很简单的概念：日志。
+这个过程中，我学到的最有益的事情是我们所构建这套系统的许多组件其核心都包含了一个很简单的概念：**日志**。
 日志有时会叫成 预先写入日志（`write-ahead logs`）、提交日志（`commit logs`）或者事务日志（`transaction logs`），几乎和计算机本身形影不离，
 是许多分布式数据系统（`distributed data system`）和实时应用架构（`real-time application architecture`）的核心。
 
-不懂得日志，你就不可能真正理解数据库、`NoSQL`存储、键值存储（`key value store`）、数据复制（`replication`）、`paxos`、`Hadoop`、版本控制（`version control`），甚至几乎任何一个软件系统；然而大多数软件工程师对日志并不熟悉。我有意于改变这个现状。
-本文我将带你浏览有关日志需要了解的一切，包括日志是什么，如何在数据集成（`data integration`）、实时处理（`real time processing`）和系统构建中使用日志。
+不懂得日志，你就不可能真正理解数据库、`NoSQL`存储、键值存储（`key value store`）、数据复制（`replication`）、`paxos`、`Hadoop`、版本控制（`version control`），
+甚至几乎任何一个软件系统；然而大多数软件工程师对日志并不熟悉。我有意于改变这个现状。
+
+本文我将带你浏览有关日志需要了解的一切，包括**日志是什么，如何在数据集成（`data integration`）、实时处理（`real time processing`）和系统构建中使用日志。**
 
 -----------------
 [« 译跋](translation-postscript.md)　　　　　　　　[第一部分：日志是什么？ »](part1-what-is-a-log.md)
