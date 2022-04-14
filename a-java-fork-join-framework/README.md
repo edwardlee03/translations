@@ -1,20 +1,28 @@
+
+
 原文链接：[A Java Fork/Join Framework(PDF)](http://gee.cs.oswego.edu/dl/papers/fj.pdf) - _Doug Lea_  
 基于[并发编程网 – ifeve.com](http://ifeve.com/)上 _Alex_/_萧欢_ 翻译、_方腾飞_ 校对的译文稿：[Java Fork Join 框架](http://ifeve.com/a-java-fork-join-framework/)  
 译文发在[并发编程网 – ifeve.com](http://ifeve.com/)：[`Java` `Fork/Join`框架](http://ifeve.com/java-fork-join-framework/)， 2017-11-02
 
-# `Java` `Fork/Join`框架
+`Java` `Fork/Join`框架
+======
 
 ## 🍎 译序
 
 _Doug Lea_ 大神关于`Java 7`引入的他写的`Fork/Join`框架的论文。
 
-[反应式编程](https://www.reactivemanifesto.org/zh-CN)（`Reactive Programming` / `RP`）作为一种范式在整个业界正在逐步受到认可和落地，是对过往系统的业务需求理解梳理之后对系统技术设计/架构模式的提升总结。`Java`作为一个成熟平台，对于趋势一向有着稳健的接纳和跟进能力，有着令人惊叹的生命活力：
+[响应式编程](https://www.reactivemanifesto.org/zh-CN)（`Reactive Programming` / `RP`）
+作为一种范式在整个业界正在逐步受到认可和落地，是对过往系统的业务需求理解梳理之后对**系统技术设计/架构模式**的提升总结。
+`Java`作为一个成熟平台，对于趋势一向有着稳健的接纳和跟进能力，有着令人惊叹的生命活力：
 
 1. `Java 7`提供了`ForkJoinPool`，支持了`Java 8`提供的`Stream`。  
     更准确地说是，支持`Java 8`的`Parallel Stream`（并行流）。
 1. 另外`Java 8`还提供了`Lambda`（有效地表达和使用`RP`需要`FP`的语言构件和理念）。
-1. 有了前面的这些稳健但不失时机的准备，在`Java 9`中提供了面向`RP`的官方[`Flow API`](https://community.oracle.com/docs/DOC-1006738)，实际上是直接把[`Reactive Streams`](http://www.reactive-streams.org/)的接口加在`Java`标准库中，即[`Reactive Streams`规范](https://github.com/reactive-streams/reactive-streams-jvm#specification)转正了。  
-    `Reactive Streams`是`RP`的基础核心组件，`Java`提供了`Flow API` 标志着 `RP`完成了由 **集市**式的自由探索阶段 向 **教堂**式的规范统一阶段 的转变。
+1. 有了前面的这些稳健但不失时机的准备，在`Java 9`中提供了面向`RP`的官方[`Flow API`](https://community.oracle.com/docs/DOC-1006738)，
+    实际上是直接把[`Reactive Streams`](http://www.reactive-streams.org/)的接口加在`Java`标准库中，即[`Reactive Streams`规范](https://github.com/reactive-streams/reactive-streams-jvm#specification)转正了。  
+    `Reactive Streams`是`RP`的基础核心组件，`Java`提供了`Flow API` 标志着 `RP`完成了由 **集市**式的*自由探索*阶段 向 **教堂**式的*规范统一*阶段 的转变。
+
+> Java提供了Flow API 标志着 RP完成了由 **集市**式的自由探索阶段 向 **教堂**式的规范统一阶段 的转变。
 
 通过上面这些说明，可以看到`ForkJoinPool`的基础重要性。
 
@@ -55,13 +63,19 @@ PS:
 
 # 0. 摘要
 
-本论文描述了一种支持并行编程风格（a style of parallel programming）的Java框架的设计、实现以及性能。它解决问题的方式是通过把问题（递归地）分拆为子任务，并行地解决这些子任务，等这些子任务完成，然后合并子任务的结果。总体的设计代签自为`Cilk`设计的`work-stealing`框架。在主要的实现技术（`implementation techniques`）上是围绕如何高效地构建和管理任务队列（`tasks queues`）和工作线程（`worker threads`）展开的。测量到的性能数据即显示出了对于多数据程序都有良好的并行加速效果，同时也给出了一些后续可能的优化。
+本论文描述了一种支持并行编程风格（a style of parallel programming）的Java框架的设计、实现以及性能。
+**它解决问题的方式是通过把问题（递归地）分拆为子任务，并行地解决这些子任务，等这些子任务完成，然后合并子任务的结果。**
+总体的设计代签自为`Cilk`设计的`work-stealing`框架。
+在主要的实现技术（`implementation techniques`）上是围绕 **如何高效地构建和管理任务队列（`tasks queues`）和工作线程（`worker threads`）** 展开的。
+测量到的性能数据即显示出了对于多数据程序都有良好的并行加速效果，同时也给出了一些后续可能的优化。
 
-> 【译注】： `Cilk`是英特尔`Cilk`语言。英特尔`C++`编辑器的新功能`Cilk`语言扩展技术，为`C/C++`语言增加了细粒度任务支持，使其为新的和现有的软件增加并行性来充分发掘多处理器能力变得更加容易。
+> 【译注】： `Cilk`是英特尔`Cilk`语言。英特尔`C++`编辑器的新功能`Cilk`语言扩展技术，
+> 为`C/C++`语言增加了细粒度任务支持，使其为新的和现有的软件增加并行性来充分发掘多处理器能力变得更加容易。
 
 # 1. 简介
 
-`Fork/Join`并行方式是获取良好的并行计算性能的一种最简单同时也是最有效的设计技术。`fork/join`并行算法是我们所熟悉的分治算法的并行版本，典型的用法如下：
+`Fork/Join`并行方式是获取良好的并行计算性能的一种最简单同时也是最有效的设计技术。
+`fork/join`并行算法是我们所熟悉的**分治算法的并行版本**，典型的用法如下：
 
 ```java
 Result solve(Problem problem) {
@@ -76,9 +90,12 @@ Result solve(Problem problem) {
 }
 ```
 
-`fork`操作将会启动一个新的并行`fork/join`子任务。`join`操作会一直等待直到所有的子任务都结束。`fork/join`算法，如同其他分治算法一样，总是会递归的、反复的划分子任务，直到这些子任务可以用足够简单的、短小的顺序方法来执行。
+`fork`操作将会启动一个新的并行`fork/join`子任务。`join`操作会一直等待直到所有的子任务都结束。
+`fork/join`算法，如同其他分治算法一样，总是会递归的、反复的划分子任务，直到这些子任务可以用足够简单的、短小的顺序方法来执行。
 
-一些相关的编程技术和实例在[《`Java`并发编程 —— 设计原则与模式 第二版》](https://book.douban.com/subject/1244021/)<sup>[7]</sup> 4.4章节中已经讨论过。这篇论文将讨论`FJTask`的设计（第2节）、实现（第3节）以及性能（第4节），它是一个支持并行编程方式的`Java™`框架。`FJTask` 作为`util.concurrent`软件包的一部分，目前可以在 http://gee.cs.oswego.edu/ 获取到。
+一些相关的编程技术和实例在[《`Java`并发编程 —— 设计原则与模式 第二版》](https://book.douban.com/subject/1244021/)<sup>[7]</sup> 4.4章节中已经讨论过。
+这篇论文将讨论`FJTask`的设计（第2节）、实现（第3节）以及性能（第4节），它是一个支持并行编程方式的`Java™`框架。
+`FJTask` 作为`util.concurrent`软件包的一部分，目前可以在 http://gee.cs.oswego.edu/ 获取到。
 
 # 2. 设计
 
@@ -337,3 +354,4 @@ if (++base < top) ...
 - **[8]** Lowenthal, David K., Vincent W. Freeh, and Gregory R. Andrews. Efficient Fine−Grain Parallelism on Shared−Memory Machines. _Concurrency−Practice and Experience_, 10,3:157−173, 1998.
 - **[9]** Simpson, David, and F. Warren Burton. Space efficient execution of deterministic parallel programs. _IEEE Transactions on Software Engineering_, December, 1999.
 - **[10]** Taura, Kenjiro, Kunio Tabata, and Akinori Yonezawa. "Stackthreads/MP: Integrating Futures into Calling Standards." In _Proceedings of ACM SIGPLAN Symposium on Principles & Practice of Parallel Programming (PPoPP)_, 1999.
+
